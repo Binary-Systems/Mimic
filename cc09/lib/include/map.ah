@@ -1,0 +1,14 @@
+* Master memory map reconstructed from the 2299 listing.
+* Confirmed against 6001 and 2277 listings (PIA1A=$1280, RAMend=$0FFF).
+
+RAMPAG	EQU	$00
+RAMstr	EQU	$0000	Beginning of RAM
+RAMend	EQU	$0FFF	End of RAM
+
+PIA1A	EQU	$1280	6821 Peripheral Interface Adapters
+PIA1B	EQU	$1281
+PIA2A	EQU	$1300
+PIA2B	EQU	$1301
+
+ACIA1	EQU	$1140	6850 Asynchronous Communication Interface Adapters
+ACIA2	EQU	$1180

@@ -1,0 +1,41 @@
+# V program is the separate Mimic-V repo. Do not mirror it here.
+/.V/
+
+# Original WINTEK tools live in gitea binary-systems.com/WINTEK.
+# A local checkout may sit here and is not part of Mimic.
+/cc09/WINTEK/
+
+# Agent and editor state
+/.agents/
+/.grok/
+/.poolside/
+.DS_Store
+*~
+*.swp
+
+# Build products
+tmp/
+__pycache__/
+*.log
+core
+*.o
+*.dSYM/
+
+# xc9 writes this linker directive in the current directory.
+/default.dir
+
+# Generated test outputs. Goldens under cc09/tests/golden stay tracked.
+/tests/asm/*.lst
+/tests/asm/*.rel
+/tests/asm/*.mik
+/tests/asm/*.map
+/tests/asm/*.s19
+/tests/asm/*.hex
+/tests/asm/*.bin
+/tests/c/*.lst
+/tests/c/*.rel
+/tests/c/*.mik
+/tests/c/*.map
+/tests/c/*.s19
+/tests/c/*.hex
+/tests/c/*.bin

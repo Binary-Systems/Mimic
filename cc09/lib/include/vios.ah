@@ -1,0 +1,22 @@
+* Vinnie's I/O constants (from the 2299 listing expansion).
+* NULL matches stdio.ah so a second EQU of the same value is legal.
+
+TXLEN	EQU	$20
+RXLEN	EQU	$20
+
+NULL	EQU	0
+CTRLC	EQU	3
+CTRLD	EQU	4
+BELL	EQU	7
+LF	EQU	10
+CR	EQU	13
+CTRLQ	EQU	17
+CTRLS	EQU	19
+*ESC	EQU	31
+SPACE	EQU	32
+DEL	EQU	127
+
+BACK	EQU	$8
+VC	EQU	$F	Visible Cursor
+IVC	EQU	$E	InVisible Cursor
+ESC	EQU	$1B

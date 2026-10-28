@@ -1,0 +1,51 @@
+
+Wintek Linker, Version 2.1r0
+Copyright 1986 Wintek Corporation
+
+
+   Linker Directives:
+  0000-FFFF
+  SECTION BSCT @ 0000-00FF
+
+      directive file: (none)
+   user input file 1: CSTART.REL
+         output file: CSTART.MIK
+
+
+
+
+
+Module           Symbol          Address
+ Section   Type  Name      first last  length
+---------  ----  --------  ------------------
+Cstart                     0100  020D  010E
+           DSCT            0100  01FF  0100
+           PSCT            0200  020D  000E
+                 .CSTRT    0200
+
+ *** free                  020E  FFFD  FDF0
+
+Cstart  
+           ASCT            FFFE  FFFF  0002
+
+
+     Entry Point at: 0200
+
+
+
+ Section Size Summary
+ --------------------
+ ASCT = 0002
+ BSCT = 0000
+ DSCT = 0100
+ PSCT = 000E
+
+
+
+
+ UNSATISFIED EXTERNAL REFERENCES
+
+ Symbol    Referenced From
+ --------  ---------------
+ .clrio    0205
+ main      0209

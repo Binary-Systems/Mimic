@@ -1,0 +1,157 @@
+#!/bin/sh
+#
+# mimic-cc09 - "shebang" driver for 6809 asm and C under the Mimic (cc09 + mimic09) toolchain.
+#
+# Make a file executable with a first line like:
+#   #!/usr/bin/env mimic-cc09
+#
+# Then ./myprog.asm or ./hello.c will:
+#   - assemble (a9) or compile (xc9: pass 1, codegen, a9, xld, rnlib9) the source
+#   - link with cstart + chario (+clrio) so that getc/putc/putchar work via the ACIA
+#   - load into mimic09 with --acia 0xF940 (the address used by original ioloc.h/chario.asm)
+#   - run (G) so ACIA I/O appears on the host terminal / pipes.
+#
+# This provides the automatic "compile, load, and run in the emulator" capability.
+# The driver lives at the Mimic root level (new files per project rules).
+#
+# Requires that "make" has been run at Mimic root (or in subs) so that cc09/bin/a9 etc exist.
+#
+# You may need:  PATH=/path/to/Mimic/bin:$PATH   before running a shebang file directly.
+#
+set -eu
+
+PROG=$(basename "$0")
+SRC="${1:-}"
+if [ -z "$SRC" ] || [ ! -f "$SRC" ]; then
+  echo "$PROG: usage: $PROG source.[asm|c]  (or use as shebang interpreter for such files)" >&2
+  exit 1
+fi
+shift || true
+
+# Locate tools.
+# Priority:
+#   1. Same directory as this script (after "make install" to /usr/local/bin etc.)
+#   2. Source tree relative layout (development from Mimic/ checkout)
+#   3. PATH (command -v)
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+
+find_tool() {
+  tool="$1"
+  # 1. Next to this script (installed case)
+  if [ -x "$SCRIPT_DIR/$tool" ]; then
+    echo "$SCRIPT_DIR/$tool"
+    return
+  fi
+  # 2. Source tree layout (development)
+  if [ -x "$SCRIPT_DIR/cc09/bin/$tool" ]; then
+    echo "$SCRIPT_DIR/cc09/bin/$tool"
+    return
+  fi
+  if [ -x "$SCRIPT_DIR/../cc09/bin/$tool" ]; then
+    echo "$(cd "$SCRIPT_DIR/.." && pwd -P)/cc09/bin/$tool"
+    return
+  fi
+  if [ -x "$SCRIPT_DIR/mimic09/bin/$tool" ]; then
+    echo "$SCRIPT_DIR/mimic09/bin/$tool"
+    return
+  fi
+  if [ -x "$SCRIPT_DIR/../mimic09/bin/$tool" ]; then
+    echo "$(cd "$SCRIPT_DIR/.." && pwd -P)/mimic09/bin/$tool"
+    return
+  fi
+  # 3. PATH
+  if command -v "$tool" >/dev/null 2>&1; then
+    command -v "$tool"
+    return
+  fi
+  echo ""
+}
+
+A9=$(find_tool a9)
+XLD=$(find_tool xld)
+XC9=$(find_tool xc9)
+M9=$(find_tool mimic09)
+
+if [ -z "$A9" ] || [ -z "$M9" ]; then
+  echo "$PROG: required tools (a9, mimic09) not found." >&2
+  echo "       Run 'make install' (or 'make' from the Mimic source tree first)." >&2
+  exit 1
+fi
+
+# For source-tree C compilation features we still try to locate the tree
+if [ -d "$SCRIPT_DIR/cc09" ] && [ -d "$SCRIPT_DIR/mimic09" ]; then
+  ROOT="$SCRIPT_DIR"
+elif [ -d "$SCRIPT_DIR/../cc09" ] && [ -d "$SCRIPT_DIR/../mimic09" ]; then
+  ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
+else
+  ROOT=""
+fi
+
+CC09="${ROOT:+${ROOT}/cc09}"
+MIMIC09="${ROOT:+${ROOT}/mimic09}"
+
+BASE=$(basename "$SRC" | sed 's/\.[^.]*$//')
+TMPD=${TMPDIR:-/tmp}
+PID=$$
+OUT_REL="$TMPD/mimic-cc09-$PID-$BASE.rel"
+OUT_MIK="$TMPD/mimic-cc09-$PID-$BASE.mik"
+
+# Only set if we actually have a source tree (development use of the shebang driver)
+if [ -n "$CC09" ] && [ -f "$CC09/tests/golden/cstart_real.rel" ]; then
+  CSTART_GOLDEN="$CC09/tests/golden/cstart_real.rel"
+else
+  CSTART_GOLDEN=""
+fi
+
+ACIA=0xF940   # matches lib/src/ioloc.h and chario.asm OUTCH/INCH
+
+detect_type() {
+  case "$SRC" in
+    *.asm|*.s) echo asm ;;
+    *.c)       echo c ;;
+    *)         echo unknown ;;
+  esac
+}
+
+TYPE=$(detect_type)
+if [ "$TYPE" = "unknown" ]; then
+  echo "$PROG: only .asm and .c supported for shebang/auto-run ($SRC)" >&2
+  exit 1
+fi
+
+cleanup() {
+  rm -f "$OUT_REL" "$OUT_MIK" "$TMPD/mimic-cc09-$PID-"*.lst "$TMPD/mimic-cc09-$PID-"*.map 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+if [ "$TYPE" = "asm" ]; then
+  echo "$PROG: assembling $SRC with a9 ..."
+  "$A9" "$SRC" -o "$OUT_REL" 
+  echo "$PROG: linking with xld ..."
+  "$XLD" "$OUT_REL" -o "$OUT_MIK" -map "$TMPD/mimic-cc09-$PID-$BASE.map" || true
+else
+  # C path: real xc9 (pass 1, codegen, a9, xld, rnlib9 printf). The .mik is
+  # the linker image. cstart restarts main, so the emulator is stopped after
+  # the banner has had time to appear.
+  if [ -z "$XC9" ]; then
+    echo "$PROG: xc9 not found. Run 'make' from the Mimic source tree." >&2
+    exit 1
+  fi
+  echo "$PROG: compiling $SRC with xc9 ..."
+  "$XC9" -o "$OUT_MIK" -map "$TMPD/mimic-cc09-$PID-$BASE.map" "$SRC"
+fi
+
+echo "$PROG: running the image under mimic09 --acia $ACIA -g"
+echo "================ program I/O ================"
+OUTCAP="$TMPD/mimic-cc09-$PID-cap.txt"
+"$M9" -l "$OUT_MIK" --acia "$ACIA" -g > "$OUTCAP" 2>&1 &
+EMU_PID=$!
+sleep 1.0
+kill -INT "$EMU_PID" 2>/dev/null || true
+wait "$EMU_PID" 2>/dev/null || true
+cat "$OUTCAP"
+rm -f "$OUTCAP" 2>/dev/null || true
+echo "================ end program I/O ============"
+
+# The trap will clean temps.
+exit 0

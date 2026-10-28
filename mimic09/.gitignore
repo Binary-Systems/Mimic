@@ -1,0 +1,29 @@
+# Build artifacts
+bin/mimic09
+bin/mimic
+build/
+*.o
+*.a
+*.dSYM/
+
+# Editor / OS
+.DS_Store
+*~
+*.swp
+*.bak
+
+# Test temps
+*.tmp
+core
+
+# Legacy binaries we don't want to re-commit in root
+mimic
+mimic.exe
+*.exe
+*.coff
+
+# Optional user files
+*.s19
+*.srec
+*.hex
+*.bin

@@ -1,0 +1,274 @@
+
+
+
+                                                   Wintek 6809 Assembler, Version 3.1r0    Page 1
+                                                    06/12/126    14:56:50
+
+
+     0000               	NAM     chario
+                        
+     0000               	INCL    'IOloc.h'
+                        
+                        *       This file defines the locations of the ACIAs and PIAs.
+                        
+     0000               	ASCT
+                        
+                        **      The first ACIA is device U8.
+                        
+     F940               ACIA1CR EQU     $F940   ACIA control register
+     F940               ACIA1SR EQU     $F940   ACIA status register
+     F941               ACIA1DR EQU     $F941   ACIA data register
+                        
+                        **      The second ACIA is device U9.
+                        
+     F980               ACIA2CR EQU     $F980   ACIA control register
+     F980               ACIA2SR EQU     $F980   ACIA status register
+     F981               ACIA2DR EQU     $F981   ACIA data register
+                        
+                        **      The first PIA is device U7.
+                        
+     FB00               PIA1DRA EQU     $FB00   PIA-1, data I/O register A
+     FB01               PIA1DRB EQU     $FB01   PIA-1, data I/O register B
+     FB02               PIA1CRA EQU     $FB02   PIA-1, control register A
+     FB03               PIA1CRB EQU     $FB03   PIA-1, control register B
+                        
+                        **      The second PIA is device U6.
+                        
+     FA80               PIA2DRA EQU     $FA80   PIA-2, data I/O register A
+     FA81               PIA2DRB EQU     $FA81   PIA-2, data I/O register B
+     FA82               PIA2CRA EQU     $FA82   PIA-2, control register A
+     FA83               PIA2CRB EQU     $FA83   PIA-2, control register B
+                        
+                        
+     0000               	PSCT
+     0000               	GLOBAL  getchar,putchar,putc,getc
+     0000               	EXTERN  .LINK
+                        
+
+
+
+Character I/O Routines                             Wintek 6809 Assembler, Version 3.1r0    Page 2
+ACIA routines                                       06/12/126    14:56:50
+
+
+                        ***     getchar - read 1 character from the 6809 Control Module's ACIA 1
+                        *
+                        *            This routine is written to be compatable with the standard
+                        *       "getchar".  It changes a carriage return character into a C '\n'
+                        *       character.  Hence, both a line feed and a carriage return read
+                        *       as a newline.  The standard "getchar" also returns the value EOF
+                        *       (usually -1) on the end of file.  This "getchar" therefore
+                        *       returns a -1 when a CONTROL-D is read.
+                        **
+                        **      C calling sequence:  c = getchar();
+                        **
+                        **              where: c = (int) character read except that
+                        **                         '\r' mapped into '\n' and control-D
+                        **                         reads as -1.
+                        
+     0000   80   00     getchar SUBA    #0        no parameters are expected
+     0002   27   03     	BEQ     getchr0
+     0004   BD   0000x  	JSR     .LINK
+                        
+                        *   We call the assembly language routine INCH which waits for a
+                        *   character then returns it in B.
+                        
+     0007   8D   55     getchr0 BSR     INCH      call assembly language INCH routine
+                        
+                        *   We clear A in preparation for the return.  Next, we change '\r'
+                        *   into '\n'.  Note that we echo a '\r' as a '\r', '\n' sequence.
+                        
+     0009   4F          	CLRA
+     000A   C1   0D     	CMPB    #0Dh
+     000C   26   04     	BNE     getchr1
+     000E   8D   5A     	BSR     OUTCH
+     0010   C6   0A     	LDB     #0Ah
+                        
+                        *   Here we echo the character and then change a CONTROL-D into the
+                        *   value -1. (The constant 04 hex is a control-D).
+                        
+     0012   8D   56     getchr1 BSR     OUTCH     echo the character
+     0014   C1   04     	CMPB    #04h
+     0016   26   03     	BNE     getchr2
+     0018   CC   FFFF   	LDD     #-1
+                        
+                        *   Finally, we set the 'Z' bit to reflect our return value and return
+                        
+     001B   5D          getchr2 TSTB
+     001C   39          	RTS
+                        
+
+
+
+Character I/O Routines                             Wintek 6809 Assembler, Version 3.1r0    Page 3
+ACIA routines                                       06/12/126    14:56:50
+
+
+                        ***     getc - read 1 character from a file/channel
+                        *
+                        *            "Getc" is typically used to perform all input in a
+                        *       conventional C environment.  I.e., all input functions
+                        *       eventually call "getc" as the primitive input function.
+                        *
+                        *            In a stand-alone environment, "getc" must be customized for
+                        *       the particular I/O devices supplied.  This "getc" function
+                        *       ignores its argument and calls the "getchar" function given
+                        *       above.
+                        **
+                        **      C calling sequence: getc(c);
+                        **
+                        **              where: fp = (int) file pointer (ignored)
+                        
+     001D   80   02     getc    SUBA    #2      expect 2 parameter bytes,
+     001F   27   03     	BEQ     getc0
+     0021   BD   0000x  	JSR     .LINK
+                        
+                        *   Just call "getchar" to read a character from the ACIA
+                        
+     0024   4F          getc0   CLRA
+     0025   8D   D9     	BSR     getchar
+                        
+                        *   Now clean-up the stack and return.
+                        
+     0027   35   10     	PULS    X
+     0029   3262        	LEAS    2,S
+     002B   6E84        	JMP     0,X     getchar has set 'Z' bit,
+                        
+                        
+                        
+                        
+                        
+                        
+                        ***     putchar - write 1 character
+                        *
+                        *            This routine is designed to be compatible with the standard
+                        *       "putchar".  It therefore changes a C '\n' character into the
+                        *       sequence "line feed", "carriage return".
+                        **
+                        **      C calling sequence:  putchar(c);
+                        **
+                        **              where: c = (char) character to be written
+                        
+     002D   80   02     putchar SUBA    #2      expect 2 parameter bytes,
+     002F   27   03     	BEQ     putchr0
+     0031   BD   0000x  	JSR     .LINK
+                        
+                        *   Here we get the character into B.
+                        
+     0034   E663        putchr0 LDB     3,S
+                        
+                        *   Next, we change a '\n' into the two character sequence '\n\r'.
+                        
+
+
+
+Character I/O Routines                             Wintek 6809 Assembler, Version 3.1r0    Page 4
+ACIA routines                                       06/12/126    14:56:50
+
+
+     0036   C1   0A     	CMPB    #0Ah
+     0038   26   04     	BNE     putchr1
+     003A   8D   2E     	BSR     OUTCH     call assembly language routine
+     003C   C6   0D     	LDB     #0Dh
+                        
+                        *   Here we output the character or the '\r' of the two character
+                        *   sequence above.
+                        
+     003E   8D   2A     putchr1 BSR     OUTCH
+                        
+                        *   Finally, we return the character we just wrote.  Note that the
+                        *   character is below the return address on the stack so we can't
+                        *   use a simple RTS to return.
+                        
+     0040   35   10     	PULS    X
+     0042   35   06     	PULS    D         (AB) = parameter,
+     0044   83   0000   	SUBD    #0        set the 'Z' bit according
+     0047   6E84        	JMP     0,X        to the returned value,
+                        
+                        
+                        
+                        
+                        
+                        
+                        ***     putc - write 1 character to a file/channel
+                        *
+                        *            "Putc" is typically used to perform all output in a
+                        *       conventional C environment.  I.e., all output functions
+                        *       eventually call "putc" as the primitive output function.
+                        *
+                        *            In a stand-alone environment, "putc" must be customized for
+                        *       the particular I/O devices supplied.
+                        *
+                        *            This "putc" function ignores the second argument and calls
+                        *       the "putchar" function given above.  Therefore, the "printf"
+                        *       routine (in the runtime package) which calls "putc" will write
+                        *       to the console ACIA.
+                        **
+                        **      C calling sequence: putc(c, fp);
+                        **
+                        **              where: c = (char) character to write
+                        **
+                        **                     fp = (int) file pointer (ignored)
+                        
+     0049   80   04     putc    SUBA    #4      expect 4 parameter bytes,
+     004B   27   03     	BEQ     putc0
+     004D   BD   0000x  	JSR     .LINK
+                        
+                        *   Here we call "putchar" to write the character to the ACIA.
+                        
+     0050   EC64        putc0   LDD     4,S
+     0052   34   06     	PSHS    D
+     0054   86   02     	LDA     #2
+     0056   8D   D5     	BSR     putchar
+                        
+
+
+
+Character I/O Routines                             Wintek 6809 Assembler, Version 3.1r0    Page 5
+ACIA routines                                       06/12/126    14:56:50
+
+
+                        *   Now we clean-up the stack and return.
+                        
+     0058   35   10     	PULS    X
+     005A   3264        	LEAS    4,S
+     005C   6E84        	JMP     0,X     putchar has set 'Z' bit,
+                        
+                        
+                        
+                        
+                        
+                        
+                        ***     INCH - Input 1 character from ACIA
+                        *
+                        
+     005E   F6   F940   INCH    LDB     ACIA1SR get Rx status
+     0061   54          	LSRB
+     0062   24   FA     	BCC     INCH
+     0064   F6   F941   	LDB     ACIA1DR get data
+     0067   C4   7F     	ANDB    #$7F    mask down to 7 bits,
+     0069   39          	RTS
+                        
+                        
+                        
+                        
+                        
+                        
+                        ***     OUTCH - Output 1 character to ACIA
+                        *
+                        *       ENTRY: (B) = ASCII value of character
+                        *
+                        *       EXIT: (B) = ASCII value
+                        *
+                        *       USES: CCR except 'C' bit
+                        
+     006A   34   02     OUTCH   PSHS    A
+     006C   86   02     	LDA     #2      mask for ACIASR
+     006E   B5   F940   OUTCH1  BITA    ACIA1SR
+     0071   27   FB     	BEQ     OUTCH1
+     0073   F7   F941   	STB     ACIA1DR send (B) to ACIA
+     0076   35   02     	PULS    A
+     0078   39          	RTS
+                        
+     0079               	END
+

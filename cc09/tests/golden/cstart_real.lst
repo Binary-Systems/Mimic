@@ -1,0 +1,51 @@
+
+
+
+A C Start-Up Routine                               Wintek 6809 Assembler, Version 3.1r0    Page 1
+                                                    06/12/126    15:18:49
+
+
+     0000               	NAM     Cstart
+     0000               	GLOBAL  .CSTRT
+     0000               	EXTERN  stdin
+     0000               	EXTERN  stdout
+     0000               	EXTERN  EOF
+     0000               	EXTERN  main,.clrio
+                        
+     0000               	DSCT
+                        *
+                        *   This section reserves memory for the stack area.  Note that the
+                        *   stack is placed in DSCT.  This normally corresponds to RAM.  The
+                        *   number "256" is the number of bytes reserved.  C programs
+                        *   require extensive stack space since all automatic variables are
+                        *   allocated storage on the stack.  Programs which have large
+                        *   amounts of automatic storage or involve deep recursion may
+                        *   require more stack space than is allocated here.
+                        
+     0000               	RMB     256     Reserve memory
+     0100               stack   EQU     *       for the stack
+                        
+     0000               	PSCT
+                        
+                        *   These instructions are placed in PSCT since this normally
+                        *   corresponds to ROM.  Here we load the stack pointer, initialize
+                        *   the I/O system, set the actual number of parameters to zero, and
+                        *   call routine "main".  If we return from main we simply loop back
+                        *   and do everything again.
+                        
+     0000 10CE   0100r  .CSTRT  LDS     #stack  load stack pointer,
+     0004   BD   0000x  	JSR     .clrio  reset I/O system,
+     0007   4F          	CLRA            no parameters, (A) = 0
+     0008   BD   0000x  	JSR     main
+     000B   7E   0000r  	JMP     .CSTRT
+                        
+     0000               	ASCT
+                        
+                        *   This section loads the RESET vector with the
+                        *   address of this start-up routine.
+                        
+     FFFE               	ORG     $FFFE
+     FFFE   00   00  r  	FDB     .CSTRT  at the startup routine,
+                        
+     0000               	END     .CSTRT
+

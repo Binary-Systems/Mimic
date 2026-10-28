@@ -1,0 +1,12 @@
+# Host build products
+bin/
+*.o
+*.a
+*.dSYM/
+.DS_Store
+/a.mik
+
+# Editor
+*~
+*.swp
+*.bak

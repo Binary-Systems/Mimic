@@ -1,0 +1,12 @@
+# Add these targets to the mimic09/Makefile if you want
+#   make test-instr
+#   make test-instr-one TEST=6809_ABX_inh
+#
+# You can copy-paste the content or include this file.
+
+test-instr:
+	(cd .. && ./tests/run-instr-suite.sh)
+
+test-instr-one:
+	@test -n "$(TEST)" || (echo "Usage: make test-instr-one TEST=6809_ABX_inh"; exit 1)
+	(cd .. && ./tests/run-instr-suite.sh --test $(TEST))

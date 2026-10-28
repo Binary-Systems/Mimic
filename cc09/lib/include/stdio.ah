@@ -1,0 +1,21 @@
+* Standard input/output definitions (from the 2299 listing expansion).
+
+NULL	EQU	0
+
+stdin	EQU	1
+stdout	EQU	1
+stderr	EQU	1
+
+auxin	EQU	2
+auxout	EQU	2
+
+voxin	EQU	3
+voxout	EQU	3
+
+rmin	EQU	4
+rmout	EQU	4
+
+EOF	EQU	-1
+
+TRUE	EQU	1
+FALSE	EQU	0
